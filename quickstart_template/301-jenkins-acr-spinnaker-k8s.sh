@@ -80,10 +80,12 @@ function install_kubectl() {
 function install_az() {
   if !(command -v az >/dev/null); then
     sudo apt-get update && sudo apt-get install -y libssl-dev libffi-dev python-dev
-    echo "deb [arch=amd64] https://apt-mo.trafficmanager.net/repos/azure-cli/ wheezy main" | sudo tee /etc/apt/sources.list.d/azure-cli.list
-    sudo apt-key adv --keyserver apt-mo.trafficmanager.net --recv-keys 417A0893
-    sudo apt-get install -y apt-transport-https
-    sudo apt-get -y update && sudo apt-get install -y azure-cli
+    AZ_REPO=$(lsb_release -cs)
+    echo "deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ $AZ_REPO main" | \
+    sudo tee /etc/apt/sources.list.d/azure-cli.list
+    curl -L https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+    sudo apt-get update
+    sudo apt-get install apt-transport-https azure-cli
   fi
 }
 
