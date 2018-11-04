@@ -196,6 +196,22 @@ do
   esac
 done
 
+
+echo "app id $app_id" >> /tmp/log.txt
+echo "app id --app_key $app_key" >> /tmp/log.txt
+echo "app id --subscription_id $subscription_id" >> /tmp/log.txt
+echo "app id --tenant_id $tenant_id" >> /tmp/log.txt
+echo "app id --user_name $user_name" > /tmp/log.txt
+echo "app id --git_repository $git_repository" >> /tmp/log.txt
+echo "app id --resource_group $resource_group" >> /tmp/log.txt
+echo "app id --master_fqdn $master_fqdn" >> /tmp/log.txt
+echo "app id --storage_account_name $storage_account_name" >> /tmp/log.txt
+echo "app id --storage_account_key $storage_account_key" >> /tmp/log.txt
+echo "app id --azure_container_registry $azure_container_registry" >> /tmp/log.txt
+echo "app id --docker_repository $docker_repository" >> /tmp/log.txt
+echo "app id --pipeline_port $pipeline_port" >> /tmp/log.txt
+echo "app id --jenkins_fqdn $jenkins_fqdn" >> /tmp/log.txt
+
 throw_if_empty --app_id $app_id
 throw_if_empty --app_key $app_key
 throw_if_empty --subscription_id $subscription_id
@@ -211,19 +227,34 @@ throw_if_empty --docker_repository $docker_repository
 throw_if_empty --pipeline_port $pipeline_port
 throw_if_empty --jenkins_fqdn $jenkins_fqdn
 
+echo "add_empty_image_to_acr" >> /tmp/actions.log.txt
+
 add_empty_image_to_acr
+
+echo "install_kubectl" >> /tmp/actions.log.txt
 
 install_kubectl
 
+echo "install_az" >> /tmp/actions.log.txt
+
 install_az
 
+
+echo "halyard" >> /tmp/actions.log.txt
+
 run_util_script "spinnaker/install_halyard/install_halyard.sh" -san "$storage_account_name" -sak "$storage_account_key" -u "$user_name"
+
+
+echo "copy kube config" >> /tmp/actions.log.txt
 
 # Copy kube config
 az login --service-principal -u "$app_id" -p "$app_key" --tenant "$tenant_id"
 az account set --subscription "$subscription_id"
 run_util_script "spinnaker/copy_kube_config/copy_kube_config.sh" -un "$user_name" -rg "$resource_group" -mf "$master_fqdn"
 az logout
+
+
+echo "cfg spinakker" >> /tmp/actions.log.txt
 
 # Configure Spinnaker Docker Registry Accounts
 docker_hub_account="docker-hub-registry"
@@ -237,6 +268,9 @@ echo "$app_key" | hal config provider docker-registry account add $acr_account \
   --password
 hal config provider docker-registry enable
 
+
+echo "cfg spinaker k8" >> /tmp/actions.log.txt
+
 # Configure Spinnaker Kubernetes Account
 kubeconfig_path="/home/${user_name}/.kube/config"
 my_kubernetes_account="my-kubernetes-account"
@@ -246,12 +280,21 @@ hal config provider kubernetes account add $my_kubernetes_account \
   --docker-registries "$docker_hub_account" "$acr_account"
 hal config provider kubernetes enable
 
+
+echo "deploy sp to k8" >> /tmp/actions.log.txt
+
 # Deploy Spinnaker to the Kubernetes cluster
 hal config deploy edit --account-name $my_kubernetes_account --type distributed
 hal deploy apply
 
+
+echo "add bash login" >> /tmp/actions.log.txt
+
 # Automatically connect to Spinnaker when logging in to DevOps VM
 add_bash_login
+
+
+echo "add pipeline" >> /tmp/actions.log.txt
 
 # Add Kubernetes pipeline
 run_util_script "spinnaker/add_k8s_pipeline/add_k8s_pipeline.sh" \
@@ -261,6 +304,9 @@ run_util_script "spinnaker/add_k8s_pipeline/add_k8s_pipeline.sh" \
   -p "$pipeline_port" \
   -al "$artifacts_location" \
   -st "$artifacts_location_sas_token"
+
+
+echo "201-jenkins-acr" >> /tmp/actions.log.txt
 
 run_util_script "quickstart_template/201-jenkins-acr.sh" -u "$user_name" \
   -g "$git_repository" \
